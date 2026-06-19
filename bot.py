@@ -12,13 +12,16 @@ load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
+if not BOT_TOKEN or not GEMINI_API_KEY:
+    raise Exception("❌ BOT_TOKEN yoki GEMINI_API_KEY yo‘q (Render Environment tekshir!)")
+
 # ================= FLASK =================
 app = Flask(__name__)
 
 # ================= BOT =================
 bot = telebot.TeleBot(BOT_TOKEN)
 
-# ================= GEMINI (NEW SDK FIXED) =================
+# ================= GEMINI =================
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 def ask_ai(text):
@@ -75,6 +78,11 @@ def is_premium(user_id):
     data = cursor.fetchone()
     return data and data[0] == 1
 
+# ================= HOME ROUTE =================
+@app.route('/', methods=['GET'])
+def home():
+    return "🤖 Bot ishlayapti!", 200
+
 # ================= START =================
 @bot.message_handler(commands=['start'])
 def start(message):
@@ -110,7 +118,7 @@ def premium(message):
         "📸 To‘lov screenshot yuboring"
     )
 
-# ================= PAYMENT PHOTO =================
+# ================= PHOTO PAYMENT =================
 @bot.message_handler(content_types=['photo'])
 def payment_photo(message):
     user_id = message.from_user.id
@@ -124,7 +132,7 @@ def payment_photo(message):
         caption=f"💰 To‘lov\nUser ID: {user_id}"
     )
 
-# ================= PREMIUM GIVE =================
+# ================= GIVE PREMIUM =================
 def give_gift(user_id):
     cursor.execute(
         "UPDATE users SET xp = xp + 100 WHERE user_id=?",
@@ -217,7 +225,7 @@ if __name__ == '__main__':
     bot.remove_webhook()
 
     bot.set_webhook(
-        url='https://to-do-bot-96w0.onrender.com/webhook'
+        url='https://to-do-bot-1.onrender.com/webhook'
     )
 
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
