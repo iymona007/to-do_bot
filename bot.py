@@ -4,10 +4,12 @@ from dotenv import load_dotenv
 import os
 import sqlite3
 import google.generativeai as genai
+from flask import Flask, request
 
 load_dotenv()
 
-# ================= BOT =================
+app = Flask(__name__)
+# ================= BOT =================-
 bot = telebot.TeleBot(os.getenv("BOT_TOKEN"))
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
@@ -193,6 +195,14 @@ def ai_handler(message):
         return
 
     bot.send_message(message.chat.id, ask_ai(message.text))
+@app.route('/webhook', methods=['POST'])
+def webhook():  
+    json_str = request.get_data().decode('UTF-8')
+    update = telebot.types.Update.de_json(json_str)
+    bot.process_new_updates([update])
+    return 'ok', 200
 
-# ================= RUN =================
-bot.infinity_polling()
+if __name__ == '__main__':
+    bot.remove_webhook()
+    bot.set_webhook(url='https://conroller-bot-1.onrender.com/webhook')
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
