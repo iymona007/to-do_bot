@@ -3,16 +3,17 @@ from telebot import types
 from dotenv import load_dotenv
 import os
 import sqlite3
-import google.genai as genai
+from groq import Groq
 from flask import Flask, request
 
 # ================= ENV =================
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+print (os.getenv("GROQ_API_KEY"))
 
-if not BOT_TOKEN or not GEMINI_API_KEY:
+if not BOT_TOKEN or not GROQ_API_KEY:
     raise Exception("❌ BOT_TOKEN yoki GEMINI_API_KEY yo‘q (Render Environment tekshir!)")
 
 # ================= FLASK =================
@@ -22,19 +23,26 @@ app = Flask(__name__)
 bot = telebot.TeleBot(BOT_TOKEN)
 
 # ================= GEMINI =================
-client = genai.Client(api_key=GEMINI_API_KEY)
+client = Groq(api_key=GROQ_API_KEY)
 
 def ask_ai(text):
+    print("GROQ ISHLADI")
     try:
-        res = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=text
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "user", "content": text}
+            ]
         )
-        return res.text
+
+        print(response)
+
+        return response.choices[0].message.content
+
     except Exception as e:
+        print("XATO:", e)
         return f"❌ AI xatolik: {e}"
 
-# ================= ADMIN =================
 ADMIN_ID = 5550228074  # o‘zingni ID
 
 # ================= DATABASE =================
