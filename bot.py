@@ -3,7 +3,7 @@ from telebot import types
 from dotenv import load_dotenv
 import os
 import sqlite3
-import google.generativeai as genai
+from google import genai
 from flask import Flask, request
 
 load_dotenv()
