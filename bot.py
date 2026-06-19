@@ -3,7 +3,7 @@ from telebot import types
 from dotenv import load_dotenv
 import os
 import sqlite3
-from google import genai
+import google.genai as genai
 from flask import Flask, request
 
 # ================= ENV =================
@@ -18,7 +18,7 @@ app = Flask(__name__)
 # ================= BOT =================
 bot = telebot.TeleBot(BOT_TOKEN)
 
-# ================= GEMINI (NEW SDK) =================
+# ================= GEMINI (NEW SDK FIXED) =================
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 def ask_ai(text):
@@ -28,11 +28,11 @@ def ask_ai(text):
             contents=text
         )
         return res.text
-    except:
-        return "❌ AI xatolik"
+    except Exception as e:
+        return f"❌ AI xatolik: {e}"
 
 # ================= ADMIN =================
-ADMIN_ID = 5550228074   # o‘zingni ID yoz
+ADMIN_ID = 5550228074  # o‘zingni ID
 
 # ================= DATABASE =================
 conn = sqlite3.connect("todo.db", check_same_thread=False)
@@ -87,7 +87,11 @@ def start(message):
         types.KeyboardButton("💎 Premium")
     )
 
-    bot.send_message(message.chat.id, "👋 Xush kelibsiz!", reply_markup=markup)
+    bot.send_message(
+        message.chat.id,
+        "👋 Xush kelibsiz!",
+        reply_markup=markup
+    )
 
 # ================= MY ID =================
 @bot.message_handler(commands=['myid'])
@@ -99,10 +103,14 @@ def myid(message):
 def premium(message):
     bot.send_message(
         message.chat.id,
-        "💎 PREMIUM:\n\n✔ Ads yo‘q\n✔ Bonus XP\n✔ Sovg‘alar\n\n📸 To‘lov screenshot yuboring"
+        "💎 PREMIUM:\n\n"
+        "✔ Ads yo‘q\n"
+        "✔ Bonus XP\n"
+        "✔ Sovg‘alar\n\n"
+        "📸 To‘lov screenshot yuboring"
     )
 
-# ================= PHOTO PAYMENT =================
+# ================= PAYMENT PHOTO =================
 @bot.message_handler(content_types=['photo'])
 def payment_photo(message):
     user_id = message.from_user.id
@@ -116,10 +124,14 @@ def payment_photo(message):
         caption=f"💰 To‘lov\nUser ID: {user_id}"
     )
 
-# ================= GIVE PREMIUM =================
+# ================= PREMIUM GIVE =================
 def give_gift(user_id):
-    cursor.execute("UPDATE users SET xp = xp + 100 WHERE user_id=?", (user_id,))
+    cursor.execute(
+        "UPDATE users SET xp = xp + 100 WHERE user_id=?",
+        (user_id,)
+    )
     conn.commit()
+
     bot.send_message(user_id, "🎁 +100 XP bonus!")
 
 @bot.message_handler(commands=['give_premium'])
@@ -131,7 +143,10 @@ def give_premium(message):
     try:
         user_id = int(message.text.split()[1])
 
-        cursor.execute("UPDATE users SET premium=1 WHERE user_id=?", (user_id,))
+        cursor.execute(
+            "UPDATE users SET premium=1 WHERE user_id=?",
+            (user_id,)
+        )
         conn.commit()
 
         give_gift(user_id)
@@ -154,12 +169,17 @@ def save_task(message):
         (message.from_user.id, message.text)
     )
     conn.commit()
+
     bot.send_message(message.chat.id, "✅ Qo‘shildi")
 
-# ================= SHOW TASK =================
+# ================= SHOW TASKS =================
 @bot.message_handler(func=lambda m: m.text == "📋 Vazifalar")
 def show_tasks(message):
-    cursor.execute("SELECT id, task_text, done FROM tasks WHERE user_id=?", (message.from_user.id,))
+    cursor.execute(
+        "SELECT id, task_text, done FROM tasks WHERE user_id=?",
+        (message.from_user.id,)
+    )
+
     tasks = cursor.fetchall()
 
     if not tasks:
