@@ -1,60 +1,29 @@
+import os
+import re
+import sqlite3
 import telebot
 from telebot import types
-from dotenv import load_dotenv
-import os
-import sqlite3
-from groq import Groq
 from flask import Flask, request
+from dotenv import load_dotenv
+from groq import Groq
 
 # ================= ENV =================
 load_dotenv()
-import telebot
-
-
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
+if not BOT_TOKEN:
+    raise Exception("BOT_TOKEN yo‘q!")
+if not GROQ_API_KEY:
+    raise Exception("GROQ_API_KEY yo‘q!")
+
 bot = telebot.TeleBot(BOT_TOKEN)
-
-print(bot.get_me())
-print("BOT_TOKEN =", BOT_TOKEN)
-print("GROQ_API_KEY =", GROQ_API_KEY[:10])
-
-print (os.getenv("GROQ_API_KEY"))
-print("KEY:", GROQ_API_KEY[:10] if GROQ_API_KEY else "NONE")
-
-if not BOT_TOKEN or not GROQ_API_KEY:
-    raise Exception("❌ BOT_TOKEN yoki GROQ_API_KEY yo‘q (Render Environment tekshir!)")
-
-# ================= FLASK =================
 app = Flask(__name__)
 
-# ================= BOT =================
-bot = telebot.TeleBot(BOT_TOKEN)
-
-# ================= GEMINI =================
 client = Groq(api_key=GROQ_API_KEY)
 
-def ask_ai(text):
-    print("GROQ ISHLADI")
-    try:
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[
-                {"role": "user", "content": text}
-            ]
-        )
-
-        print(response)
-
-        return response.choices[0].message.content
-
-    except Exception as e:
-        print("XATO:", e)
-        return f"❌ AI xatolik: {e}"
-
-ADMIN_ID = 5550228074  # o‘zingni ID
+ADMIN_ID = 5550228074
 
 # ================= DATABASE =================
 conn = sqlite3.connect("todo.db", check_same_thread=False)
@@ -79,6 +48,17 @@ CREATE TABLE IF NOT EXISTS tasks (
 
 conn.commit()
 
+# ================= AI =================
+def ask_ai(text):
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": text}]
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"AI xatolik: {e}"
+
 # ================= HELPERS =================
 def ensure_user(user_id):
     cursor.execute("SELECT user_id FROM users WHERE user_id=?", (user_id,))
@@ -89,18 +69,10 @@ def ensure_user(user_id):
         )
         conn.commit()
 
-def is_admin(user_id):
-    return user_id == ADMIN_ID
-
 def is_premium(user_id):
     cursor.execute("SELECT premium FROM users WHERE user_id=?", (user_id,))
     data = cursor.fetchone()
     return data and data[0] == 1
-
-# ================= HOME ROUTE =================
-@app.route('/', methods=['GET'])
-def home():
-    return "🤖 Bot ishlayapti!", 200
 
 # ================= START =================
 @bot.message_handler(commands=['start'])
@@ -114,75 +86,12 @@ def start(message):
         types.KeyboardButton("💎 Premium")
     )
 
-    bot.send_message(
-        message.chat.id,
-        "👋 Xush kelibsiz!",
-        reply_markup=markup
-    )
-
-# ================= MY ID =================
-@bot.message_handler(commands=['myid'])
-def myid(message):
-    bot.send_message(message.chat.id, f"🆔 ID: {message.from_user.id}")
+    bot.send_message(message.chat.id, "👋 Xush kelibsiz!", reply_markup=markup)
 
 # ================= PREMIUM =================
 @bot.message_handler(func=lambda m: m.text == "💎 Premium")
 def premium(message):
-    bot.send_message(
-        message.chat.id,
-        "💎 PREMIUM:\n\n"
-        "✔ Ads yo‘q\n"
-        "✔ Bonus XP\n"
-        "✔ Sovg‘alar\n\n"
-        "📸 To‘lov screenshot yuboring"
-    )
-
-# ================= PHOTO PAYMENT =================
-@bot.message_handler(content_types=['photo'])
-def payment_photo(message):
-    user_id = message.from_user.id
-    ensure_user(user_id)
-
-    bot.send_message(message.chat.id, "📸 Qabul qilindi!")
-
-    bot.send_photo(
-        ADMIN_ID,
-        message.photo[-1].file_id,
-        caption=f"💰 To‘lov\nUser ID: {user_id}"
-    )
-
-# ================= GIVE PREMIUM =================
-def give_gift(user_id):
-    cursor.execute(
-        "UPDATE users SET xp = xp + 100 WHERE user_id=?",
-        (user_id,)
-    )
-    conn.commit()
-
-    bot.send_message(user_id, "🎁 +100 XP bonus!")
-
-@bot.message_handler(commands=['give_premium'])
-def give_premium(message):
-    if not is_admin(message.from_user.id):
-        bot.send_message(message.chat.id, "❌ Admin emassiz")
-        return
-
-    try:
-        user_id = int(message.text.split()[1])
-
-        cursor.execute(
-            "UPDATE users SET premium=1 WHERE user_id=?",
-            (user_id,)
-        )
-        conn.commit()
-
-        give_gift(user_id)
-
-        bot.send_message(user_id, "🎉 Siz PREMIUM bo‘ldingiz!")
-        bot.send_message(message.chat.id, "✅ Berildi!")
-
-    except:
-        bot.send_message(message.chat.id, "❌ /give_premium USER_ID")
+    bot.send_message(message.chat.id, "💎 Premium tizim")
 
 # ================= ADD TASK =================
 @bot.message_handler(func=lambda m: m.text == "➕ Vazifa qo'shish")
@@ -196,58 +105,72 @@ def save_task(message):
         (message.from_user.id, message.text)
     )
     conn.commit()
-
     bot.send_message(message.chat.id, "✅ Qo‘shildi")
 
 # ================= SHOW TASKS =================
 @bot.message_handler(func=lambda m: m.text == "📋 Vazifalar")
 def show_tasks(message):
     cursor.execute(
-        "SELECT id, task_text, done FROM tasks WHERE user_id=?",
+        "SELECT task_text, done FROM tasks WHERE user_id=?",
         (message.from_user.id,)
     )
-
     tasks = cursor.fetchall()
 
     if not tasks:
-        bot.send_message(message.chat.id, "📭 Yo‘q")
+        bot.send_message(message.chat.id, "📭 Bo‘sh")
         return
 
     text = ""
     for i, t in enumerate(tasks, 1):
-        status = "✔" if t[2] else "❌"
-        text += f"{i}. {t[1]} {status}\n"
-
-    if is_premium(message.from_user.id):
-        text += "\n💎 Premium user"
+        status = "✔" if t[1] else "❌"
+        text += f"{i}. {t[0]} {status}\n"
 
     bot.send_message(message.chat.id, text)
 
-# ================= AI HANDLER =================
+# ================= FILTER =================
+bad_words = ['jinni','ahmoq','idiot','stupid','loser']
+
+def has_link(text):
+    return bool(re.search(r'(https?://|t\.me/)', text))
+
 @bot.message_handler(func=lambda m: True)
-def ai_handler(message):
-    if message.text in ["➕ Vazifa qo'shish", "📋 Vazifalar", "💎 Premium"]:
+def all_messages(message):
+    text = message.text or ""
+
+    try:
+        member = bot.get_chat_member(message.chat.id, message.from_user.id)
+        is_admin = member.status in ["administrator", "creator"]
+    except:
+        is_admin = False
+
+    if has_link(text) and not is_admin:
+        bot.delete_message(message.chat.id, message.message_id)
         return
 
-    bot.send_message(message.chat.id, ask_ai(message.text))
+    for w in bad_words:
+        if w in text.lower():
+            bot.delete_message(message.chat.id, message.message_id)
+            return
 
-# # ================= WEBHOOK =================
-# @app.route('/webhook', methods=['POST'])
-# def webhook():
-#     json_str = request.get_data().decode('UTF-8')
-#     update = telebot.types.Update.de_json(json_str)
-#     bot.process_new_updates([update])
-#     return 'ok', 200
+    # AI fallback
+    bot.send_message(message.chat.id, ask_ai(text))
 
-# # ================= START SERVER =================
-# if __name__ == '__main__':
-#     bot.remove_webhook()
+# ================= WEBHOOK =================
+@app.route("/webhook", methods=["POST"])
+def webhook():
+    update = types.Update.de_json(request.get_data().decode("utf-8"))
+    bot.process_new_updates([update])
+    return "ok", 200
 
-#     bot.set_webhook(
-#         url='https://to-do-bot-1.onrender.com/webhook'
-#     )
+@app.route("/")
+def home():
+    return "Bot ishlayapti", 200
 
-#     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+# ================= RUN =================
 if __name__ == "__main__":
+    WEBHOOK_URL = "https://YOUR-APP.onrender.com/webhook"
+
     bot.remove_webhook()
-    bot.infinity_polling()
+    bot.set_webhook(url=WEBHOOK_URL)
+
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
