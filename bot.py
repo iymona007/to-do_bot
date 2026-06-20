@@ -8,13 +8,24 @@ from flask import Flask, request
 
 # ================= ENV =================
 load_dotenv()
+import telebot
+
+
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+bot = telebot.TeleBot(BOT_TOKEN)
+
+print(bot.get_me())
+print("BOT_TOKEN =", BOT_TOKEN)
+print("GROQ_API_KEY =", GROQ_API_KEY[:10])
+
 print (os.getenv("GROQ_API_KEY"))
+print("KEY:", GROQ_API_KEY[:10] if GROQ_API_KEY else "NONE")
 
 if not BOT_TOKEN or not GROQ_API_KEY:
-    raise Exception("❌ BOT_TOKEN yoki GEMINI_API_KEY yo‘q (Render Environment tekshir!)")
+    raise Exception("❌ BOT_TOKEN yoki GROQ_API_KEY yo‘q (Render Environment tekshir!)")
 
 # ================= FLASK =================
 app = Flask(__name__)
@@ -220,20 +231,23 @@ def ai_handler(message):
 
     bot.send_message(message.chat.id, ask_ai(message.text))
 
-# ================= WEBHOOK =================
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    json_str = request.get_data().decode('UTF-8')
-    update = telebot.types.Update.de_json(json_str)
-    bot.process_new_updates([update])
-    return 'ok', 200
+# # ================= WEBHOOK =================
+# @app.route('/webhook', methods=['POST'])
+# def webhook():
+#     json_str = request.get_data().decode('UTF-8')
+#     update = telebot.types.Update.de_json(json_str)
+#     bot.process_new_updates([update])
+#     return 'ok', 200
 
-# ================= START SERVER =================
-if __name__ == '__main__':
+# # ================= START SERVER =================
+# if __name__ == '__main__':
+#     bot.remove_webhook()
+
+#     bot.set_webhook(
+#         url='https://to-do-bot-1.onrender.com/webhook'
+#     )
+
+#     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+if __name__ == "__main__":
     bot.remove_webhook()
-
-    bot.set_webhook(
-        url='https://to-do-bot-1.onrender.com/webhook'
-    )
-
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    bot.infinity_polling()
